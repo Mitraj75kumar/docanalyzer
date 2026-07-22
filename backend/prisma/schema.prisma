@@ -1,0 +1,117 @@
+// Prisma schema for AI Document Analyzer
+// Run: npx prisma migrate dev --name init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum DocumentStatus {
+  UPLOADED
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
+enum FileType {
+  PDF
+  DOCX
+  TXT
+  IMAGE
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  password     String
+  role         Role     @default(USER)
+  avatarUrl    String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  documents    Document[]
+  chatMessages ChatMessage[]
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
+}
+
+model Document {
+  id            String         @id @default(uuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  originalName  String
+  storedName    String
+  filePath      String
+  fileType      FileType
+  mimeType      String
+  sizeBytes     Int
+  extractedText String?        @db.Text
+  status        DocumentStatus @default(UPLOADED)
+  errorMessage  String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  analyses      AnalysisResult[]
+  chatMessages  ChatMessage[]
+
+  @@index([userId])
+  @@map("documents")
+}
+
+enum AnalysisType {
+  SUMMARY
+  REWRITE
+  TRANSLATION
+  KEYWORDS
+  SENTIMENT
+}
+
+model AnalysisResult {
+  id         String       @id @default(uuid())
+  documentId String
+  document   Document     @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  type       AnalysisType
+  input      Json?
+  output     Json
+  createdAt  DateTime     @default(now())
+
+  @@index([documentId, type])
+  @@map("analysis_results")
+}
+
+model ChatMessage {
+  id         String   @id @default(uuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       String   // "user" | "assistant"
+  content    String   @db.Text
+  createdAt  DateTime @default(now())
+
+  @@index([documentId])
+  @@map("chat_messages")
+}
