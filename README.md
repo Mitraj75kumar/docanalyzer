@@ -95,7 +95,7 @@ npm install
 npm run dev                          # starts on http://localhost:5173
 ```
 
-Open http://localhost:5173, register a new account (or log in with the seeded admin), and start
+Open https://deegpgkvg4kod.cloudfront.net, register a new account (or log in with the seeded admin), and start
 uploading documents.
 
 ### 4. Production build
@@ -229,3 +229,49 @@ password: Admin@12345
 - Add automated tests (Jest + Supertest for backend, Vitest + React Testing Library for frontend).
 - Add HTTPS/TLS termination (reverse proxy) and a production-grade process manager (PM2 or a
   container orchestrator).
+
+## Deployment
+
+This application is deployed on **AWS**, served via **CloudFront** with a Dockerized backend on **Elastic Beanstalk**.
+
+### Live URL
+- **App:** https://deegpgkvg4kod.cloudfront.net
+
+### Deployment Stack
+- **CDN:** AWS CloudFront
+- **Backend Platform:** AWS Elastic Beanstalk (Docker)
+- **Reverse Proxy:** Nginx (config: `.platform/nginx/conf.d/proxy.conf`)
+- **Post-deploy hook:** Runs Prisma migrations (`backend/.platform/hooks/postdeploy/01_migrate.sh`)
+- **Process:** Defined in `backend/Procfile`
+
+### Steps to Deploy
+
+1. Build the deployment package:
+```bash
+   bash scripts/build-for-eb.sh
+```
+   This generates the deployment zip (`eb-deploy.zip` / `docker-deploy.zip`).
+
+2. Deploy using EB CLI:
+```bash
+   eb deploy
+```
+   Or upload the generated zip manually via the AWS Elastic Beanstalk console.
+
+3. Set the following environment variables in the EB environment configuration (via AWS Console → Configuration → Software, not committed to `.env`):
+   - `DATABASE_URL`
+   - `JWT_ACCESS_SECRET`
+   - `JWT_REFRESH_SECRET`
+   - `GEMINI_API_KEY`
+   - `CLIENT_URL`
+   - `NODE_ENV=production`
+
+4. Database migrations run automatically via the post-deploy hook.
+
+5. Invalidate the CloudFront cache after deploying frontend changes:
+```bash
+   aws cloudfront create-invalidation --distribution-id <YOUR_DISTRIBUTION_ID> --paths "/*"
+```
+
+### Notes
+- Uploaded documents are stored in `backend/src/uploads/` — this is **not persistent** across Elastic Beanstalk deployments/restarts. Consider migrating to S3 for production reliability.
