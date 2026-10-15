@@ -29,7 +29,7 @@ export const sendChatMessage = (id, message) => api.post(`/documents/${id}/chat`
 
 export const sendChatMessageStream = (id, message, { onUserMessage, onChunk, onDone, onError }) => {
   const token = localStorage.getItem('accessToken');
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
 
   fetch(`${baseUrl}/documents/${id}/chat/stream`, {
     method: 'POST',
